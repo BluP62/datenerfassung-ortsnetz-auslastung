@@ -1,0 +1,11 @@
+[Unit]
+Description=Ortsnetz-Auslastung smartWB (eine Messung senden)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Optional: eigenen Benutzer verwenden
+#User=pi
+EnvironmentFile=/etc/ortsnetz-smartwb.env
+ExecStart=/usr/bin/python3 /opt/ortsnetz-smartwb/ortsnetz_smartwb.py

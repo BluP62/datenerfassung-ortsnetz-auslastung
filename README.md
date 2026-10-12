@@ -19,6 +19,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 - [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate)
 - [USV mit NUT](#usv-mit-nut)
 - [WeeWX](#weewx)
+- [smartWB Wallbox](#smartwb-wallbox)
 - [Gemeinsame Eigenschaften](#gemeinsame-eigenschaften)
 - [API](#api)
 - [Koordinaten](#koordinaten)
@@ -42,6 +43,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 | [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate) | REST-API des Messgeräts | Node.js / Docker | HTTPS | Siemens PAC 4200/4220 und ähnliche Energiemessgeräte |
 | [USV mit NUT](#usv-mit-nut) | USV-Eingangsspannung über NUT | Shell / cron | HTTPS | NUT-kompatible einphasige USVs |
 | [WeeWX](#weewx) | Vorhandene Sensoren | Python / systemd | HTTPS | WeeWX mit Zusatzmodul
+| [smartWB Wallbox](#smartwb-wallbox) | HTTP-API der Wallbox (Spannungen L1–L3) | Python / cron / systemd-Timer | HTTPS | smartWB / EVSE-WiFi 2.0 mit Stromzähler |
 
 ## Shelly Pro 3EM und Pro EM50
 
@@ -186,6 +188,16 @@ Installation, Konfiguration und der Cron-Eintrag stehen in der [NUT-USV-Anleitun
 - Voraussetzungen: Installation von WeeWX und eines WeeWX-Zusatzmoduls zur Abfrage des Umrichters
 
 Installation und Konfiguration stehen in der [WeeWX-README](weewx-ortsnetz-auslastung/README.md).
+
+## smartWB Wallbox
+
+Das Python-Script liest die Phasenspannungen einer smartWB / EVSE-WiFi 2.0 Wallbox über deren lokale HTTP-API (`/getParameters`) und wird alle fünf Minuten per cron oder systemd-Timer ausgeführt. Einphasige Wallboxen werden mit `-1` für nicht vorhandene Phasen unterstützt. Die Wallbox liefert keine Netzfrequenz.
+
+- Ordner: [`smartwb-ortsnetz-auslastung`](smartwb-ortsnetz-auslastung)
+- Script: [`ortsnetz_smartwb.py`](smartwb-ortsnetz-auslastung/ortsnetz_smartwb.py)
+- Voraussetzungen: smartWB / EVSE-WiFi 2.0 mit konfiguriertem Stromzähler, im Heimnetz erreichbar (IP bekannt) und mit aktivierter API, Linux mit Python ab 3.8, cron oder systemd und Internetzugang
+
+Installation, Konfiguration, cron-Eintrag und systemd-Timer stehen in der [smartWB-README](smartwb-ortsnetz-auslastung/README.md).
 
 ## Gemeinsame Eigenschaften
 
