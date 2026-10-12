@@ -19,6 +19,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 - [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate)
 - [SAX Power Smartmeter](#sax-power-smartmeter)
 - [USV mit NUT](#usv-mit-nut)
+- [WeeWX](#weewx)
 - [Gemeinsame Eigenschaften](#gemeinsame-eigenschaften)
 - [API](#api)
 - [Koordinaten](#koordinaten)
@@ -37,11 +38,12 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 | [Victron GX](#victron-gx) | VE.Bus oder Netzzähler über D-Bus | Python / Venus OS | HTTPS | Victron GX-Geräte |
 | [Volkszähler](#volkszähler) | Volkszähler-Middleware | Python / cron | HTTPS | Smart Meter mit Volkszähler |
 | [KOSTAL KSEM](#kostal-ksem) | KOSTAL Smart Energy Meter | Node-RED / Modbus | HTTPS | KSEM mit Node-RED |
-| [openHAB](#openhab) | Vorhandene Smart-Meter-Items | openHAB JavaScript-Regel | HTTPS | openHAB-Installationen |
+| [openHAB](#openhab) | Vorhandene Smart-Meter-Items | openHAB 4+ / JavaScript | HTTPS | openHAB-Installationen |
 | [Fronius](#fronius) | Fronius Smart Meter über die Solar API | Python / cron | HTTPS | Fronius-Wechselrichter mit Smart Meter |
 | [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate) | REST-API des Messgeräts | Node.js / Docker | HTTPS | Siemens PAC 4200/4220 und ähnliche Energiemessgeräte |
 | [SAX Power Smartmeter](#sax-power-smartmeter) | SAX Smartmeter über Modbus TCP | Python / systemd | HTTPS | SAX Power Home und Home Plus mit Smartmeter |
 | [USV mit NUT](#usv-mit-nut) | USV-Eingangsspannung über NUT | Shell / cron | HTTPS | NUT-kompatible einphasige USVs |
+| [WeeWX](#weewx) | Vorhandene Sensoren | Python / systemd | HTTPS | WeeWX mit Zusatzmodul
 
 ## Shelly Pro 3EM und Pro EM50
 
@@ -143,15 +145,12 @@ Vor der Bereitstellung Modbus-Server und Beispielkoordinaten in der Payload-Funk
 
 ## openHAB
 
-Die openHAB-Integration besteht aus einer JavaScript-Regel und einem Node.js-HTTPS-Helfer. Die Regel liest konfigurierte Smart-Meter-Items alle fünf Minuten und ruft den Helfer auf.
+Die openHAB-Datenerfassung wird in einem separaten Repository gepflegt. Sie liest konfigurierte Smart-Meter-Items und überträgt die Spannungswerte alle fünf Minuten.
 
-- Ordner: [`openhab-ortsnetz-auslastung`](openhab-ortsnetz-auslastung)
-- Regel: [`ortsnetz-auslastung.js`](openhab-ortsnetz-auslastung/ortsnetz-auslastung.js)
-- Helfer: [`ortsnetz_senden.js`](openhab-ortsnetz-auslastung/ortsnetz_senden.js)
-- Voraussetzungen: openHAB JavaScript Scripting sowie Node.js unter dem konfigurierten Helferpfad
-- Anleitung: [openHAB-README](openhab-ortsnetz-auslastung/readme.md)
+- Repository: [Caddy-SRX/Openhab-datenerfassung-ortsnetz-auslastung](https://github.com/Caddy-SRX/Openhab-datenerfassung-ortsnetz-auslastung)
+- Voraussetzungen: openHAB ab Version 4, JavaScript Scripting (GraalVM) und JSONPath
 
-Vor der Aktivierung Item-IDs sowie Node.js- und Helferpfade anpassen.
+Installation und Konfiguration stehen in der [openHAB-README](https://github.com/Caddy-SRX/Openhab-datenerfassung-ortsnetz-auslastung#readme).
 
 ## Fronius
 
@@ -192,6 +191,13 @@ Das Shell-Script liest die Eingangsspannung einer über NUT eingebundenen einpha
 - Voraussetzungen: NUT mit `upsc`, `curl`, Shell-Zugang, cron und Internetzugang
 
 Installation, Konfiguration und der Cron-Eintrag stehen in der [NUT-USV-Anleitung](ups-ortsnetz-auslastung/ortsnetz_ups.md).
+
+## WeeWX
+
+- Ordner: [`weewx-ortsnetz-auslastung`](weewx-ortsnetz-auslastung)
+- Voraussetzungen: Installation von WeeWX und eines WeeWX-Zusatzmoduls zur Abfrage des Umrichters
+
+Installation und Konfiguration stehen in der [WeeWX-README](weewx-ortsnetz-auslastung/README.md).
 
 ## Gemeinsame Eigenschaften
 
