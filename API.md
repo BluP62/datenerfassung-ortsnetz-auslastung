@@ -9,6 +9,10 @@ Content-Type: application/json
 
 Der Endpoint ist öffentlich und benötigt keine Authentifizierung. Jede Messung wird einzeln übertragen.
 
+## Sendeintervall
+
+Messungen sollen pro Messquelle alle **300 Sekunden (5 Minuten)** gesendet werden. Das Sendeintervall wird durch den Client bzw. die Integration gesteuert.
+
 ## Request-Felder
 
 | Feld | Typ | Pflicht | Beschreibung |
