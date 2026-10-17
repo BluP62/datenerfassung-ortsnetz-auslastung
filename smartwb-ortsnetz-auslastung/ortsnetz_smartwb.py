@@ -24,6 +24,7 @@ erfolgen, siehe README.md.
 import http.client
 import json
 import os
+import signal
 import sys
 import urllib.error
 import urllib.request
@@ -49,6 +50,10 @@ API_URL = "https://www.ortsnetz-auslastung.de/v1/measurements"
 INTEGRATION_VERSION = "smartwb-0.1.0"
 SMARTMETER_MODEL = "smartWB"
 
+# Maximale Gesamtlaufzeit eines Aufrufs in Sekunden. Die HTTP-Timeouts begrenzen nur einzelne
+# Netzwerkoperationen, langsam weiter eintreffende Daten würden den Prozess sonst beliebig lange offenhalten.
+MAX_LAUFZEIT_S = 60
+
 # =======================================================================
 
 # Spannungen außerhalb dieses Bereichs gelten als nicht plausibel
@@ -58,6 +63,18 @@ SPANNUNG_MAX = 300
 
 class MesswertFehler(Exception):
 	pass
+
+
+def laufzeit_begrenzen():
+	"""Beendet den Prozess mit Fehler, wenn er länger als MAX_LAUFZEIT_S läuft (nur Linux/Unix)."""
+	if not hasattr(signal, "SIGALRM"):
+		return
+
+	def abbruch(signalnummer, frame):
+		raise SystemExit(f"FEHLER: Maximale Laufzeit von {MAX_LAUFZEIT_S} s überschritten.")
+
+	signal.signal(signal.SIGALRM, abbruch)
+	signal.alarm(MAX_LAUFZEIT_S)
 
 
 def log(text):
@@ -204,6 +221,7 @@ def main():
 	if any(argument != "--dry-run" for argument in argumente):
 		raise SystemExit(f"Aufruf: {sys.argv[0]} [--dry-run]")
 
+	laufzeit_begrenzen()
 	konfiguration_laden()
 	konfiguration_pruefen()
 	try:

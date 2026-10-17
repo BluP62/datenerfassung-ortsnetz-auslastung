@@ -1,5 +1,7 @@
 import importlib.util
 import pathlib
+import signal
+import time
 import unittest
 from unittest.mock import patch
 
@@ -85,6 +87,18 @@ class PayloadTests(unittest.TestCase):
     def test_plant_capacity_wird_uebernommen(self):
         with patch.object(MODULE, "PLANT_CAPACITY_KWP", 9.8):
             self.assertEqual(self.payload(BEISPIEL)["plant_capacity_kwp"], 9.8)
+
+
+class LaufzeitTests(unittest.TestCase):
+    @unittest.skipUnless(hasattr(signal, "SIGALRM"), "nur Unix")
+    def test_laufzeitbegrenzung_bricht_ab(self):
+        self.addCleanup(signal.alarm, 0)
+        self.addCleanup(signal.signal, signal.SIGALRM, signal.SIG_DFL)
+        with patch.object(MODULE, "MAX_LAUFZEIT_S", 1):
+            MODULE.laufzeit_begrenzen()
+        with self.assertRaises(SystemExit) as fehler:
+            time.sleep(3)
+        self.assertIn("Maximale Laufzeit", str(fehler.exception))
 
 
 class EinstellungTests(unittest.TestCase):

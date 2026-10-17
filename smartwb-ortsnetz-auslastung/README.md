@@ -22,6 +22,7 @@ Ist die L1-Spannung nicht plausibel, wird nichts gesendet. Liefert die Wallbox w
 - smartWB bzw. EVSE-WiFi 2.0 Wallbox mit konfiguriertem Stromzähler (`useMeter` = `true`), siehe [API-Dokumentation](https://www.evse-wifi.de)
 - **Die Wallbox ist im Heimnetz (WLAN/LAN) erreichbar und ihre IP-Adresse ist bekannt.** `192.168.4.1` gilt nur im Access-Point-Modus der Wallbox und funktioniert im Normalbetrieb nicht. Am besten im Router eine feste IP für die Wallbox vergeben.
 - **Die API ist in den Einstellungen der Wallbox aktiviert.** Ist sie deaktiviert, antwortet `/getParameters` nicht.
+- **Wallbox nicht im Remote-Modus.** Die Integration ruft nur `/getParameters` ab, ein reiner Lese-Aufruf. Im Remote-Modus (`opMode` = `remote`, siehe `/evseHost`) ist nicht geprüft, ob der Abruf das Verhalten einer fernsteuernden Software beeinflusst (zum Beispiel Heartbeat oder Zeitüberwachung der Firmware). Die Integration daher nur bei `opMode` = `normal` oder `alwaysActive` einsetzen. Getestet wurde mit Firmware 2.4.2 im Modus `normal`.
 - Linux-Rechner im selben Netz, zum Beispiel ein Raspberry Pi, mit cron oder systemd und Internetzugang
 - Python ab 3.8 (nur Standardbibliothek, keine zusätzlichen Pakete)
 - Korrekte Systemzeit (NTP)
@@ -57,11 +58,11 @@ Die Wallbox misst hinter der Hausverteilung am Abgang der Wallbox, nicht am Netz
 ## Installation
 
 ```bash
-sudo mkdir /opt/ortsnetz-smartwb
-sudo chown $USER: /opt/ortsnetz-smartwb
-cp ortsnetz_smartwb.py /opt/ortsnetz-smartwb/
-chmod 755 /opt/ortsnetz-smartwb/ortsnetz_smartwb.py
+sudo install -d -o root -g root -m 755 /opt/ortsnetz-smartwb
+sudo install -o root -g root -m 755 ortsnetz_smartwb.py /opt/ortsnetz-smartwb/
 ```
+
+Script und Ordner gehören bewusst `root` und sind für normale Benutzer nicht beschreibbar. Das ist wichtig, weil der systemd-Dienst das Script ausführt: Ein beschreibbares Script könnte sonst von jedem, der es ändern kann, mit den Rechten des Dienstes ausgeführt werden. Für `--dry-run` und Tests genügt ein Aufruf als normaler Benutzer (`python3 /opt/ortsnetz-smartwb/ortsnetz_smartwb.py --dry-run`).
 
 ## Konfiguration
 
@@ -115,10 +116,10 @@ crontab -e
 ```
 
 ```
-*/5 * * * * SMARTWB_HOST=192.168.1.50 LATITUDE=52.52 LONGITUDE=13.40 /usr/bin/python3 /opt/ortsnetz-smartwb/ortsnetz_smartwb.py >> $HOME/ortsnetz-smartwb.log 2>&1
+*/5 * * * * SMARTWB_HOST=192.168.1.50 LATITUDE=52.52 LONGITUDE=13.40 /usr/bin/timeout 60 /usr/bin/python3 /opt/ortsnetz-smartwb/ortsnetz_smartwb.py >> $HOME/ortsnetz-smartwb.log 2>&1
 ```
 
-Das Script läuft alle fünf Minuten. Die API erwartet pro Messquelle ein Sendeintervall von 300 Sekunden, das Intervall also nicht verkürzen. Alternativ stehen die Variablen als eigene Zeilen über dem Eintrag in der Crontab, zum Beispiel `LATITUDE=52.52`.
+Das Script läuft alle fünf Minuten. Die API erwartet pro Messquelle ein Sendeintervall von 300 Sekunden, das Intervall also nicht verkürzen. `timeout 60` beendet einen hängenden Lauf nach 60 Sekunden, damit sich bei einer nicht antwortenden Wallbox keine Prozesse ansammeln. Zusätzlich bricht das Script selbst nach 60 Sekunden ab (`MAX_LAUFZEIT_S`). Alternativ stehen die Variablen als eigene Zeilen über dem Eintrag in der Crontab, zum Beispiel `LATITUDE=52.52`. Das cron-Beispiel gehört in die Crontab eines normalen, unprivilegierten Benutzers, nicht in die von root.
 
 ## Betrieb per systemd-Timer
 
@@ -132,7 +133,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ortsnetz-smartwb.timer
 ```
 
-Pfade und Benutzer (`User=` in der Service-Datei) bei Bedarf an die eigene Installation anpassen.
+Der Dienst läuft mit `DynamicUser=yes` als unprivilegierter, temporärer Benutzer und nicht als root. `TimeoutStartSec=60s` begrenzt die Laufzeit einer Messung. Pfade bei Bedarf an die eigene Installation anpassen. Ein anderer fester Benutzer ist über `User=` möglich, das Script bleibt dann trotzdem `root`-eigen.
 
 Kontrolle:
 
@@ -176,6 +177,7 @@ Bei Fehlern endet das Script mit Exit-Code 1 und einer Meldung, die mit `FEHLER:
 |---|---|
 | `… ist nicht gesetzt` / `… müssen als Zahl gesetzt sein` / `… muss …` | Pflichtwert in der Konfiguration fehlt oder liegt außerhalb des gültigen Bereichs |
 | `Environment-Variable … ist ungültig` | Eine Environment-Variable lässt sich nicht als Zahl lesen |
+| `Maximale Laufzeit von 60 s überschritten` | Die Wallbox oder die API antwortet nur sehr langsam, Netzwerk und Wallbox prüfen |
 | `Abruf von … fehlgeschlagen` | Wallbox nicht erreichbar, falsche IP, API in der Wallbox deaktiviert oder Antwort kein gültiges JSON |
 | `Antwort der Wallbox hat ein unerwartetes Format` | Die Antwort enthält kein `list[0]`, Firmware prüfen |
 | `L1: keine plausible Spannung` | `voltageP1` fehlt oder liegt außerhalb von 150 bis 300 V, Stromzähler der Wallbox prüfen |
