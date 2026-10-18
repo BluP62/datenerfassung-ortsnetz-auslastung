@@ -79,3 +79,71 @@ Beispielantwort bei Annahme:
 | `none` | Keine Aktion | Alle gemessenen Phasen liegen innerhalb der Warnschwellen. |
 
 Nicht verfügbare Phasen mit dem Wert `-1` werden ignoriert. Liegen gleichzeitig Unter- und Überspannungen vor, hat `discharge` Vorrang. Die Schwellenwerte entsprechen immer der auf dem Server konfigurierten Spannungsskala.
+
+## Geplante optionale Messfelder
+
+Diese Erweiterung beschreibt geplante zusätzliche Felder für `POST /v1/measurements`.
+Sie ist noch nicht im Backend implementiert: Die neuen Werte werden derzeit
+nicht als Messfelder validiert oder gespeichert. Bestehende Pflichtfelder und
+Antworten bleiben unverändert. Alle nachfolgenden Felder sind optional und
+können unabhängig voneinander weggelassen werden.
+
+| Feld | Typ | Einheit / Bereich | Beschreibung |
+| --- | --- | --- | --- |
+| `l1_v_min`, `l1_v_max`, `l1_v_avg` | Zahl | V | Minimum, Maximum und arithmetischer Mittelwert der Spannung an L1 |
+| `l2_v_min`, `l2_v_max`, `l2_v_avg` | Zahl | V | Minimum, Maximum und arithmetischer Mittelwert der Spannung an L2 |
+| `l3_v_min`, `l3_v_max`, `l3_v_avg` | Zahl | V | Minimum, Maximum und arithmetischer Mittelwert der Spannung an L3 |
+| `grid_frequency_hz_min`, `grid_frequency_hz_max`, `grid_frequency_hz_avg` | Zahl | Hz | Minimum, Maximum und arithmetischer Mittelwert der Netzfrequenz |
+| `battery_capacity` | Zahl | kWh | Nutzbare Batteriespeicherkapazität; kein Ladezustand und kein aktueller Energieinhalt |
+| `power_factor` | Zahl | Dimensionslos, 0 bis 1 einschließlich | Leistungsfaktor: Verhältnis von Wirkleistung zu Scheinleistung (`P / S`) |
+| `apparent_power_va` | Zahl | VA | Scheinleistung in Voltampere; keine Wirkleistung |
+| `power_w` | Zahl | W | Wirkleistung in Watt; keine Scheinleistung |
+| `l1_a`, `l2_a`, `l3_a` | Zahl | A | Aktuelle Stromstärke an L1, L2 beziehungsweise L3; keine Leistung |
+
+`min`, `max` und `avg` werden vom Messclient aus den gültigen Einzelwerten
+desselben Übertragungsintervalls gebildet, üblicherweise fünf Minuten. Sie sind
+keine vom Server berechnete Tagesstatistik. Genaue Intervallgrenzen werden mit
+diesen zusätzlichen Feldern nicht übertragen. Wenn alle drei Kennzahlen eines
+Messwerts vorhanden sind, gilt `min <= avg <= max`.
+
+Bei einphasigen Messungen bleiben nicht gemessene Phasen mit `-1` markiert.
+Das gilt weiterhin für `l1_v`, `l2_v` und `l3_v` und ebenso für die neuen
+Stromstärkefelder `l1_a`, `l2_a`, `l3_a` sowie alle phasenbezogenen
+`_min`-, `_max`- und `_avg`-Felder, sofern sie übertragen werden.
+Die neuen Felder bleiben optional. Beispiel bei ausschließlicher Messung von L1:
+`l1_v = 230.1`, `l2_v = -1`, `l3_v = -1`.
+Mindestens eine Phase muss einen gültigen Spannungswert liefern.
+
+`-1` ist ausschließlich ein Kennzeichen für eine nicht gemessene Phase,
+kein Messwert, und wird bei Mittelwerten, Min/Max-Auswertungen und der
+Spannungsbewertung ignoriert. Sonstige nicht verfügbare optionale Kennzahlen
+werden weggelassen. Für Frequenz, Batteriespeicherkapazität, Leistungsfaktor
+und nicht phasenbezogene Leistungsfelder wird `-1` nicht als Ersatzwert verwendet.
+
+`power_factor` bezeichnet den Leistungsfaktor, nicht den
+Phasenwinkel in Grad/Radiant oder die Anzahl der gemessenen Phasen.
+Bei sinusförmigen Signalen gilt `power_factor = cos(φ)`; bei verzerrten
+Signalen ist diese Gleichsetzung nicht allgemein gültig. Für diese Erweiterung
+wird der nichtnegative Wert von 0 bis 1 übertragen; eine Energieflussrichtung
+wird daraus nicht abgeleitet.
+
+Beispiel zusätzlicher Felder (Auszug, kein vollständiger Request; erst nach
+Backend-Unterstützung verwenden):
+
+```json
+{
+  "l1_v_min": 228.4,
+  "l1_v_max": 232.1,
+  "l1_v_avg": 230.2,
+  "grid_frequency_hz_min": 49.98,
+  "grid_frequency_hz_max": 50.03,
+  "grid_frequency_hz_avg": 50.01,
+  "battery_capacity": 10.2,
+  "power_factor": 0.95,
+  "apparent_power_va": 3700.0,
+  "power_w": 3515.0,
+  "l1_a": 5.2,
+  "l2_a": 4.8,
+  "l3_a": 6.1
+}
+```
