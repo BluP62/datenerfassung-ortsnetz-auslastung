@@ -1,0 +1,9 @@
+# Dieser Abschnitt muss in die zentrale Homeassistant Config integriert werden
+# Homeassistant erlaubt aus Sicherheitsgründen keine HTTP Calls an nicht definierte
+# Schnittstellen / Endpunkte
+rest_command:
+  ortsnetz-auslastung-de:
+    url: "https://www.ortsnetz-auslastung.de/v1/measurements"
+    method: "POST"
+    content_type: "application/json"
+    payload: '{{ payload }}'

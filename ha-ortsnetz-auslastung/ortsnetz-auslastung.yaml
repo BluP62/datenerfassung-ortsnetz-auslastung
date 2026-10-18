@@ -1,0 +1,86 @@
+alias: "Projekt: ortsnetz-auslastung.de"
+description: |
+  Sendet Daten an Projekt ortsnetz-auslastung.de über eine einfache 
+  Homeassistant Automatisierung
+
+triggers:
+  # Zeit-gesteuerter Auslöser, standard: alle 5 Minuten
+  - minutes: /5
+    trigger: time_pattern
+
+actions:
+
+  # 1. aktualisiert Entities durch diesen Automatismus, falls diese "gepolled" 
+  # werden (z.B. Modbus); existiert ein eigener Zeitplan zur Aktualisierung, 
+  # kann die Aktion entfallen bzw. entfernt werden
+  - action: homeassistant.update_entity
+    metadata: {}
+    data:
+      entity_id:
+        # Liste der Entity-Namen, die aktualisiert werden müssen
+        # Entity Namen entsprechend den tatsächlichen anpassen:
+        - sensor.ksem_netzfrequenz
+        - sensor.ksem_l1_voltage
+        - sensor.ksem_l2_voltage
+        - sensor.ksem_l3_voltage
+
+  # 2. Baut aus den Entities den API Payload für die Schnittstelle
+  # für ortsnetz-auslastung.de zusammen und parkt dieser in einer 
+  # Variable "json_payload"
+  - variables:
+      json_payload:
+        # Aktuelle Zeit, ISO formatiert
+        observed_at: "{{ now().isoformat() }}"
+
+        # Entity Namen entsprechend den tatsächlichen anpassen:
+        grid_frequency_hz: "{{ states('sensor.ksem_netzfrequenz') }}"
+        l1_v: "{{ states('sensor.ksem_l1_voltage') }}"
+        l2_v: "{{ states('sensor.ksem_l2_voltage') }}"
+        l3_v: "{{ states('sensor.ksem_l3_voltage') }}"
+
+        # Orts-Koordinaten aus der Homeassistant Konfiguration
+        latitude: "{{ state_attr('zone.home', 'latitude') }}"
+        longitude: "{{ state_attr('zone.home', 'longitude') }}"
+
+        ## Optional: installierte kwp
+        # plant_capacity_kwp: 8.0
+        ## Optional: Model Name des Smart Meters
+        # smartmeter_model: "Kostal Smart Energy Meter G1"
+  
+  # 3. Schreibt Payload ins Log, fürs Debugging (nicht aktiviert)
+  - action: system_log.write
+    enabled: false
+    data:
+      level: debug
+      message: "Daten für ortsnetz-auslastung.de: {{ json_payload | to_json }}"
+
+  # 4. Sendet Payload an "rest_command" Integration
+  - action: rest_command.ortsnetz-auslastung-de
+    data:
+      payload: |
+        {{ json_payload | to_json }}
+    enabled: true
+    # Response wird in Variable "post_response" geparkt
+    response_variable: post_response
+  
+  # 5. Status des Response auserten und Fehlermeldung, falls etwas nicht stimmt
+  - if:
+      - condition: template
+        value_template: >-
+          {{ post_response['status'] >= 200 and post_response['status'] < 300 
+          }}
+    then:
+      # Falls OK: Log in System Log
+      - action: system_log.write
+        metadata: {}
+        data:
+          level: debug
+          message: Update an ortsnetz-auslastung.de OK
+    else:
+      # im Fehlerfall: persistente Nachricht schreiben
+      - action: persistent_notification.create
+        metadata: {}
+        data:
+          message: >-
+            Fehler bei Aktualisierung ortsnetz-auslastung.de: {{ post_response | to_json }}
+mode: single
