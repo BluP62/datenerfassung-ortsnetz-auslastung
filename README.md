@@ -12,9 +12,11 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 - [MQTT](#mqtt)
 - [evcc](#evcc)
 - [Victron GX](#victron-gx)
+- [Carlo Gavazzi EM24 (Community)](#carlo-gavazzi-em24-community)
 - [Volkszähler](#volkszähler)
 - [KOSTAL KSEM](#kostal-ksem)
 - [openHAB](#openhab)
+- [Symcon](#symcon)
 - [Fronius](#fronius)
 - [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate)
 - [USV mit NUT](#usv-mit-nut)
@@ -36,9 +38,11 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 | [MQTT](#mqtt) | MQTT-Topics | Node.js / Docker | HTTPS | Smart-Meter-Gateways mit MQTT und EVCC |
 | [evcc](#evcc) | Shelly Gen2/3 oder Modbus TCP | Python / cron | HTTPS | evcc-Installationen mit direktem Zählerzugriff |
 | [Victron GX](#victron-gx) | VE.Bus oder Netzzähler über D-Bus | Python / Venus OS | HTTPS | Victron GX-Geräte |
+| [Carlo Gavazzi EM24 (Community)](#carlo-gavazzi-em24-community) | EM24 über mbmd / MQTT | Python / Linux / systemd | HTTPS | EM24-Installationen mit mbmd und MQTT |
 | [Volkszähler](#volkszähler) | Volkszähler-Middleware | Python / cron | HTTPS | Smart Meter mit Volkszähler |
 | [KOSTAL KSEM](#kostal-ksem) | KOSTAL Smart Energy Meter | Node-RED / Modbus | HTTPS | KSEM mit Node-RED |
 | [openHAB](#openhab) | Vorhandene Smart-Meter-Items | openHAB 4+ / JavaScript | HTTPS | openHAB-Installationen |
+| [Symcon](#symcon) | Vorhandene Spannungsvariablen | Symcon-Modul (PHP) | HTTPS | Symcon-Installationen |
 | [Fronius](#fronius) | Fronius Smart Meter über die Solar API | Python / cron | HTTPS | Fronius-Wechselrichter mit Smart Meter |
 | [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate) | REST-API des Messgeräts | Node.js / Docker | HTTPS | Siemens PAC 4200/4220 und ähnliche Energiemessgeräte |
 | [USV mit NUT](#usv-mit-nut) | USV-Eingangsspannung über NUT | Shell / cron | HTTPS | NUT-kompatible einphasige USVs |
@@ -123,6 +127,16 @@ Das Python-Script läuft direkt auf Venus OS und liest Netzspannungen über den 
 
 Installation, Konfiguration und Autostart stehen in der [Victron-GX-README](victron-gx-ortsnetz-auslastung/README.md).
 
+## Carlo Gavazzi EM24 (Community)
+
+Das externe Python-Script liest die Phasenspannungen L1–L3 und optional die Netzfrequenz eines Carlo Gavazzi EM24 aus MQTT-Topics, die von `mbmd` bereitgestellt werden. Es sendet die Messwerte alle fünf Minuten und ergänzt optional eine grobe PV-Tagesprognose auf Basis von Open-Meteo.
+
+- Repository: [hrpv/em24-ortsnetz-auslastung](https://github.com/hrpv/em24-ortsnetz-auslastung)
+- Voraussetzungen: Linux (z. B. Raspberry Pi), Python ab 3.9, `mbmd`, ein MQTT-Broker, `mosquitto_sub` und Internetzugang
+- Installation und Konfiguration: [EM24-README](https://github.com/hrpv/em24-ortsnetz-auslastung#readme)
+
+Experimentelles Community-Projekt, keine offizielle Integration. Unterstützung und Kompatibilität mit der aktuellen API sind nicht zugesichert; vor dem Einsatz die Projektanleitung und [API.md](API.md) prüfen.
+
 ## Volkszähler
 
 Das Python-Script liest die Phasenspannungen aus der lokalen Volkszähler-Middleware und wird alle fünf Minuten per cron ausgeführt. Optional werden Netzfrequenz, installierte PV-Leistung, PV-Tagesprognose und das Zählermodell übertragen.
@@ -151,6 +165,15 @@ Die openHAB-Datenerfassung wird in einem separaten Repository gepflegt. Sie lies
 - Voraussetzungen: openHAB ab Version 4, JavaScript Scripting (GraalVM) und JSONPath
 
 Installation und Konfiguration stehen in der [openHAB-README](https://github.com/Caddy-SRX/Openhab-datenerfassung-ortsnetz-auslastung#readme).
+
+## Symcon
+
+Das Symcon-Modul wird in einem separaten Repository gepflegt und ist über den Symcon Module Store installierbar (Suche nach „Ortsnetz-Auslastung“). Es liest konfigurierte Spannungsvariablen und überträgt L1 bis L3 alle fünf Minuten, optional mit Frequenz, Strömen, Netzleistung, Ladezustand, PV-Prognose sowie Minimum, Maximum und Mittelwert über das Intervall. Ampel, Speicherladeempfehlung und Redispatch aus der Antwort stehen als Variablen und als Kachel zur Verfügung.
+
+- Repository: [da8ter/OrtsnetzAuslastung](https://github.com/da8ter/OrtsnetzAuslastung)
+- Voraussetzungen: Symcon ab Version 8.1 und eine Variable mit der Netzspannung mindestens einer Phase
+
+Installation und Konfiguration stehen in der [Symcon-README](https://github.com/da8ter/OrtsnetzAuslastung/tree/main/OrtsnetzAuslastung).
 
 ## Fronius
 

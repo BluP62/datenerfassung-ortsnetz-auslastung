@@ -57,7 +57,7 @@ actions:
       message: "Daten für ortsnetz-auslastung.de: {{ json_payload | to_json }}"
 
   # 4. Sendet Payload an "rest_command" Integration
-  - action: rest_command.ortsnetz-auslastung-de
+  - action: rest_command.ortsnetz_auslastung_de
     data:
       payload: |
         {{ json_payload | to_json }}

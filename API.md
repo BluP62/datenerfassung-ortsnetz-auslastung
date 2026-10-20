@@ -24,8 +24,8 @@ Messungen sollen pro Messquelle alle **300 Sekunden (5 Minuten)** gesendet werde
 | `l2_v` | Zahl | Ja | Spannung Phase L2 in Volt, größer als 0 und maximal 500; bei nicht gemessener Phase `-1` |
 | `l3_v` | Zahl | Ja | Spannung Phase L3 in Volt, größer als 0 und maximal 500; bei nicht gemessener Phase `-1` |
 | `grid_frequency_hz` | Zahl | Nein | Netzfrequenz in Hertz, 45 bis 55 |
-| `plant_capacity_kwp` | Zahl | Nein | Installierte PV-Leistung in kWp, größer als 0 und maximal 1000 |
-| `pv_forecast_kwh` | Zahl | Nein | heutige Gesamt PV-Prognose in kWh, 0 bis 100000 |
+| `plant_capacity_kwp` | Zahl | Nein | Installierte PV-Leistung in kWp, größer als 0 und maximal 1000; für Forecasts erforderlich, sofern nicht bereits am Standort gespeichert |
+| `pv_forecast_kwh` | Zahl | Nein | Heutige PV-Gesamtprognose in kWh, 0 bis 100000; benötigt eine mitgesendete oder am Standort gespeicherte Anlagengröße und darf 10 kWh je kWp pro Tag nicht überschreiten; andernfalls HTTP 422 für die gesamte Messung |
 | `smartmeter_model` | String | Nein | Freie Bezeichnung des Messgeräts, maximal 120 Zeichen |
 | `integration_version` | String | Nein | Kennung der Integration, maximal 32 Zeichen |
 

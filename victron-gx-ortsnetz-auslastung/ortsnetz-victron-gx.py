@@ -48,7 +48,10 @@ def log(msg):
 def get(service, path):
     """D-Bus GetValue; liefert float oder None (ungültig = leeres Array)."""
     try:
-        v = bus.get_object(service, path).GetValue()
+        v = bus.get_object(service, path).GetValue(
+            dbus_interface="com.victronenergy.BusItem",
+            timeout=3,
+        )
         if isinstance(v, dbus.Array) or v is None:
             return None
         return float(v)

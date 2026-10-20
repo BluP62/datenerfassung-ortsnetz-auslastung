@@ -2,13 +2,13 @@
 # Homeassistant erlaubt aus Sicherheitsgründen keine HTTP Calls an nicht definierte
 # Schnittstellen / Endpunkte
 rest_command:
-  ortsnetz-auslastung-de:
+  ortsnetz_auslastung_de:
     url: "https://www.ortsnetz-auslastung.de/v1/measurements"
     method: "POST"
     content_type: "application/json"
     payload: '{{ payload }}'
 
-# Bei erfolgreichem Request gibt es auch eine Response. Diese Werte können als
+# Bei erfolgreichem Request gibt es auch eine Response. Diese Werte können t:als
 # Sensoren in Home Assistant exposed werden. Falls das nicht passieren soll,
 # können die folgenden Zeilen einfach weggelassen werden
 template:
