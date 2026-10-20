@@ -44,6 +44,8 @@ actions:
 
         ## Optional: installierte kwp
         # plant_capacity_kwp: 8.0
+        ## Optional: vorhergesagter Tagesgesamtertrag in kWh
+        # pv_forecast_kwh: "{{ states('sensor.solar_pv_forecast_today')}}"
         ## Optional: Model Name des Smart Meters
         # smartmeter_model: "Kostal Smart Energy Meter G1"
   
@@ -62,8 +64,15 @@ actions:
     enabled: true
     # Response wird in Variable "post_response" geparkt
     response_variable: post_response
-  
-  # 5. Status des Response auserten und Fehlermeldung, falls etwas nicht stimmt
+
+  # 5. Triggert Event "ortsnetz_api_response" zur Rückspielung der Response-
+  # Daten als Sensoren
+  - event: ortsnetz_api_response
+    event_data:
+      http_status: '{{ post_response.status | default(0) }}'
+      response: '{{ post_response.content | default({}, true) | to_json }}'
+
+  # 6. Status des Response auswerten und Fehlermeldung, falls etwas nicht stimmt
   - if:
       - condition: template
         value_template: >-
