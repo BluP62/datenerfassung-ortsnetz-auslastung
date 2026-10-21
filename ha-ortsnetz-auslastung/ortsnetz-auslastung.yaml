@@ -1,21 +1,8 @@
 alias: "Projekt: ortsnetz-auslastung.de"
 description: |
-  Sendet Daten an Projekt ortsnetz-auslastung.de über eine einfache 
-  Homeassistant Automatisierung
-
-# Zentrale Konfiguration: hier einmalig die eigenen Entity-Namen eintragen,
-# alle Aktionen unten verwenden diese Variablen.
-variables:
-  # Entity Namen entsprechend den tatsächlichen anpassen.
-  # Ohne Frequenzsensor: Zeile "frequency" hier UND Zeile "grid_frequency_hz"
-  # im Payload (Schritt 2) entfernen.
-  sensors:
-    frequency: sensor.ksem_netzfrequenz
-    l1_voltage: sensor.ksem_l1_voltage
-    l2_voltage: sensor.ksem_l2_voltage
-    l3_voltage: sensor.ksem_l3_voltage
-  # Zone, aus der die Orts-Koordinaten gelesen werden
-  location_zone: zone.home
+  Sendet Daten an Projekt ortsnetz-auslastung.de über eine einfache
+  Homeassistant Automatisierung. Die eigenen Sensoren werden nur in
+  Schritt 1 "Konfiguration" eingetragen. Funktioniert mit 1, 2 oder 3 Phasen.
 
 triggers:
   # Zeit-gesteuerter Auslöser, standard: alle 5 Minuten
@@ -24,68 +11,105 @@ triggers:
 
 actions:
 
-  # 1. aktualisiert Entities durch diesen Automatismus, falls diese "gepolled" 
-  # werden (z.B. Modbus); existiert ein eigener Zeitplan zur Aktualisierung, 
-  # kann die Aktion entfallen bzw. entfernt werden
-  - action: homeassistant.update_entity
-    metadata: {}
-    data:
-      # Liste der Entity-Namen aus der zentralen Konfiguration (variables: sensors)
-      entity_id: "{{ sensors.values() | list }}"
+  # 1. KONFIGURATION – die einzige Stelle, die angepasst werden muss.
+  #    Im visuellen Editor ist das der erste Schritt "Konfiguration".
+  #    - Nicht vorhandene oder nicht gemessene Phase: "" eintragen,
+  #      sie wird dann als -1 gesendet (z.B. einphasige Messung oder
+  #      Mikrowechselrichter nur auf zwei Phasen).
+  #    - Ohne Frequenzsensor: "" eintragen, das Feld wird dann weggelassen.
+  - alias: "Konfiguration"
+    variables:
+      l1_voltage: sensor.ksem_l1_voltage
+      l2_voltage: sensor.ksem_l2_voltage
+      l3_voltage: sensor.ksem_l3_voltage
+      frequency: sensor.ksem_netzfrequenz
 
-  # 2. Baut aus den Entities den API Payload für die Schnittstelle
-  # für ortsnetz-auslastung.de zusammen und parkt dieser in einer 
-  # Variable "json_payload"
-  - variables:
-      json_payload:
-        # Aktuelle Zeit, ISO formatiert
-        observed_at: "{{ now().isoformat() }}"
+      # Zone, aus der die Orts-Koordinaten gelesen werden
+      location_zone: zone.home
 
-        # Entity Namen kommen aus der zentralen Konfiguration (variables: sensors)
-        grid_frequency_hz: "{{ states(sensors.frequency) }}"
-        l1_v: "{{ states(sensors.l1_voltage) }}"
-        l2_v: "{{ states(sensors.l2_voltage) }}"
-        l3_v: "{{ states(sensors.l3_voltage) }}"
+      # Werte, die älter sind, gelten als veraltet und werden nicht
+      # gesendet (z.B. Mikrowechselrichter, der nachts den letzten Wert behält).
+      # 0 = keine Altersprüfung (falls ein Sensor unveränderte Werte nicht
+      # neu meldet und sonst fälschlich als veraltet gilt)
+      max_age_minutes: 10
 
-        # Orts-Koordinaten aus der Homeassistant Konfiguration
-        latitude: "{{ state_attr(location_zone, 'latitude') }}"
-        longitude: "{{ state_attr(location_zone, 'longitude') }}"
-
-        ## Optional: installierte kwp
+      # Optionale Zusatzfelder, siehe API.md. Zum Aktivieren "#" entfernen.
+      optional_fields:
         # plant_capacity_kwp: 8.0
-        ## Optional: vorhergesagter Tagesgesamtertrag in kWh
-        # pv_forecast_kwh: "{{ states('sensor.solar_pv_forecast_today')}}"
-        ## Optional: Model Name des Smart Meters
+        # pv_forecast_kwh: "{{ states('sensor.solar_pv_forecast_today') }}"
         # smartmeter_model: "Kostal Smart Energy Meter G1"
-  
-  # 3. Schreibt Payload ins Log, fürs Debugging (nicht aktiviert)
-  - action: system_log.write
-    enabled: false
-    data:
-      level: debug
-      message: "Daten für ortsnetz-auslastung.de: {{ json_payload | to_json }}"
 
-  # 4. Sendet nur, wenn alle Messwerte numerisch sind. Ist ein Sensor "unknown",
-  # "unavailable" oder nicht vorhanden, wird eine Warnung ins System Log
-  # geschrieben und die Automation abgebrochen, statt einen Request zu senden,
-  # den die API mit 422 ablehnen würde.
-  - alias: "Nur senden, wenn alle Messwerte numerisch sind"
+  # 2. Aktualisiert die eingetragenen Sensoren, falls diese "gepolled" werden
+  #    (z.B. Modbus); existiert ein eigener Zeitplan zur Aktualisierung,
+  #    kann die Aktion deaktiviert werden. Leere Einträge werden übersprungen.
+  - alias: "Sensoren aktualisieren"
+    action: homeassistant.update_entity
+    continue_on_error: true
+    data:
+      entity_id: >-
+        {{ [l1_voltage, l2_voltage, l3_voltage, frequency] | select | list }}
+
+  # 3. Liest die Messwerte. Ein Wert wird nur übernommen, wenn der Sensor
+  #    existiert, einen Zahlenwert im erlaubten Bereich liefert und nicht
+  #    älter als max_age_minutes ist. Sonst: Phase = -1, Frequenz = weggelassen.
+  - alias: "Messwerte lesen"
+    variables:
+      phases: >-
+        {%- set ns = namespace(out={}) -%}
+        {%- for key, entity in [('l1_v', l1_voltage), ('l2_v', l2_voltage), ('l3_v', l3_voltage)] -%}
+          {%- set st = expand(entity) | first if entity else none -%}
+          {%- set ts = (st.last_reported | default(st.last_updated)) if st else none -%}
+          {%- set fresh = ts is not none and (max_age_minutes | float(10) <= 0 or (now() - ts).total_seconds() <= max_age_minutes | float(10) * 60) -%}
+          {%- set v = st.state | float(-1) if fresh else -1 -%}
+          {%- set ns.out = dict(ns.out, **{key: v if 0 < v <= 500 else -1}) -%}
+        {%- endfor -%}
+        {{ ns.out }}
+      grid_frequency: >-
+        {%- set st = expand(frequency) | first if frequency else none -%}
+        {%- set ts = (st.last_reported | default(st.last_updated)) if st else none -%}
+        {%- set fresh = ts is not none and (max_age_minutes | float(10) <= 0 or (now() - ts).total_seconds() <= max_age_minutes | float(10) * 60) -%}
+        {%- set v = st.state | float(-1) if fresh else -1 -%}
+        {{ v if 45 <= v <= 55 else none }}
+
+  # 4. Sendet nur, wenn mindestens eine Phase einen gültigen Wert hat.
+  #    Sonst Warnung ins System Log und Abbruch, statt einen Request zu
+  #    senden, den die API mit 422 ablehnen würde.
+  - alias: "Mindestens eine gültige Phase?"
     if:
       - condition: template
-        value_template: >-
-          {{ sensors.values() | map('states') | reject('is_number') | list
-          | count > 0 }}
+        value_template: "{{ phases.values() | select('>', 0) | list | count == 0 }}"
     then:
       - action: system_log.write
         metadata: {}
         data:
           level: warning
           message: >-
-            ortsnetz-auslastung.de: nicht gesendet, nicht alle Messwerte numerisch:
-            {% for key, entity in sensors.items() %}{{ entity }}={{ states(entity) }}{{ ', ' if not loop.last }}{% endfor %}
-      - stop: "Messwerte nicht numerisch"
+            ortsnetz-auslastung.de: nicht gesendet, keine gültige Phase:
+            {% for e in [l1_voltage, l2_voltage, l3_voltage] | select %}{{ e }}={{ states(e) }}{{ ', ' if not loop.last }}{% endfor %}
+      - stop: "Keine gültige Phase"
 
-  # 5. Sendet Payload an "rest_command" Integration
+  # 5. Baut aus den Messwerten den API Payload für ortsnetz-auslastung.de
+  #    zusammen und parkt diesen in der Variable "json_payload"
+  - alias: "Payload bauen"
+    variables:
+      json_payload: >-
+        {%- set p = dict(observed_at=now().isoformat(),
+                         latitude=state_attr(location_zone, 'latitude'),
+                         longitude=state_attr(location_zone, 'longitude'),
+                         **phases) -%}
+        {%- if grid_frequency is number -%}
+          {%- set p = dict(p, grid_frequency_hz=grid_frequency) -%}
+        {%- endif -%}
+        {{ dict(p, **(optional_fields or {})) }}
+
+  # 6. Schreibt Payload ins Log, fürs Debugging (nicht aktiviert)
+  - action: system_log.write
+    enabled: false
+    data:
+      level: debug
+      message: "Daten für ortsnetz-auslastung.de: {{ json_payload | to_json }}"
+
+  # 7. Sendet Payload an "rest_command" Integration
   - action: rest_command.ortsnetz_auslastung_de
     data:
       payload: |
@@ -94,19 +118,18 @@ actions:
     # Response wird in Variable "post_response" geparkt
     response_variable: post_response
 
-  # 6. Triggert Event "ortsnetz_api_response" zur Rückspielung der Response-
-  # Daten als Sensoren
+  # 8. Triggert Event "ortsnetz_api_response" zur Rückspielung der Response-
+  #    Daten als Sensoren
   - event: ortsnetz_api_response
     event_data:
       http_status: '{{ post_response.status | default(0) }}'
       response: '{{ post_response.content | default({}, true) | to_json }}'
 
-  # 7. Status des Response auswerten und Fehlermeldung, falls etwas nicht stimmt
+  # 9. Status des Response auswerten und Fehlermeldung, falls etwas nicht stimmt
   - if:
       - condition: template
         value_template: >-
-          {{ post_response['status'] >= 200 and post_response['status'] < 300 
-          }}
+          {{ post_response['status'] >= 200 and post_response['status'] < 300 }}
     then:
       # Falls OK: Log in System Log
       - action: system_log.write
